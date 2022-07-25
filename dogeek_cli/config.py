@@ -16,6 +16,7 @@ class DefaultConfig:
         'app.default_verbosity': 0,
         'app.email': '',
         'app.registries': ['cli.dogeek.me'],
+        'app.notify_new_version': True,
     }
 
 

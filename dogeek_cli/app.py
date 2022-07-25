@@ -6,6 +6,7 @@ import logging
 
 import typer
 
+from dogeek_cli import __version__
 from dogeek_cli.config import config, plugins_registry
 from dogeek_cli.enums import OutputFormat
 from dogeek_cli.logging import Logger
@@ -14,9 +15,8 @@ from dogeek_cli.subcommands import env
 from dogeek_cli.subcommands import config as cfg
 from dogeek_cli.subcommands import plugins
 from dogeek_cli.subcommands import system
-from dogeek_cli.utils import clean_help_string
+from dogeek_cli.utils import clean_help_string, check_version
 from dogeek_cli.plugin import Plugin
-
 
 logging.setLoggerClass(Logger)
 logger = Logger('cli')
@@ -65,6 +65,8 @@ def callback(
     state = State()
     state.format = format
     state.verbosity = verbosity
+    if config['app.notify_new_version']:
+        check_version(__version__)
     return
 
 

@@ -42,6 +42,11 @@ class Plugin:
     def path(self) -> Path:
         return Path(plugins_registry[self.plugin_name]['path'])
 
+    @path.setter
+    def path(self, path: str | Path) -> None:
+        plugins_registry[self.plugin_name]['path'] = Path(path)
+        return
+
     @property
     def is_dir(self) -> bool:
         return plugins_registry[self.plugin_name]['is_dir']
@@ -151,6 +156,7 @@ class Plugin:
             if not module_path.is_dir()
             else module_path.name
         )
+        self.path = module_path
         default_metadata = {
             'help': clean_help_string(self.module.__doc__),
             'name': plugin_name,
