@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# poetry run pylama --skip .venv/*
+poetry run pytest
