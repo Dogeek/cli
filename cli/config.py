@@ -14,6 +14,8 @@ class DefaultConfig:
         'app.pager.name': 'less',
         'app.pager.flags': [],
         'app.default_verbosity': 0,
+        'app.email': '',
+        'app.registries': ['cli.dogeek.me'],
     }
 
 
@@ -29,10 +31,6 @@ templates_path.mkdir(parents=True, exist_ok=True)
 plugins_path: Path = (config.app_path / 'plugins')
 plugins_path.mkdir(parents=True, exist_ok=True)
 plugins_registry = JsonConfig('cli', 'registry.json')
-state = {
-    'format': 'default',
-    'verbosity': config['app.default_verbosity'],
-}
 RESERVED_COMMANDS = ['config', 'env', 'plugins']
 logs_path: Path = (config.app_path / 'logs')
 logs_path.mkdir(parents=True, exist_ok=True)

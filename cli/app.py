@@ -6,9 +6,10 @@ import logging
 
 import typer
 
-from cli.config import config, plugins_registry, state  # noqa
+from cli.config import config, plugins_registry
 from cli.enums import OutputFormat
 from cli.logging import Logger
+from cli.state import State
 from cli.subcommands import env
 from cli.subcommands import config as cfg
 from cli.subcommands import plugins
@@ -59,9 +60,9 @@ def callback(
         max=5, help='Set the verbosity level of the command.',
     ),
 ) -> None:
-    global state
-    state['format'] = format.value
-    state['verbosity'] = verbosity
+    state = State()
+    state.format = format
+    state.verbosity = verbosity
     return
 
 
