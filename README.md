@@ -14,4 +14,10 @@ Interactive CLI to store scripts into
 
 ## Features
 
-* TODO
+* Extensible plugins system
+
+## Planned features
+
+* Public registry for plugins
+* Update checking for cli app
+* Inline plugin editor using $EDITOR / $VISUAL
