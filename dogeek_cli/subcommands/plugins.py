@@ -1,9 +1,7 @@
 '''Manages CLI plugins.'''
 import errno
 from http import HTTPStatus
-import os
 from pathlib import Path
-import subprocess
 import textwrap
 from typing import Optional
 
@@ -19,11 +17,9 @@ from dogeek_cli.config import (
     config, plugins_path, plugins_registry, RESERVED_COMMANDS, logs_path,
 )
 from dogeek_cli.logging import Logger
-from dogeek_cli.utils import (
-    cache_plugin_metadata, is_plugin_enabled, do_install,
-    do_upgrade, plugin_has_upgrade, remove_plugin_files,
-)
+from dogeek_cli.utils import open_editor, open_pager
 from dogeek_cli.subcommands.registry import app as registry_app
+from dogeek_cli.plugin import Plugin
 
 app = typer.Typer()
 app.add_typer(registry_app, name='registry')
@@ -73,7 +69,8 @@ def update() -> int:
                 continue
             if module_path.name.startswith('.'):
                 continue
-            cache_plugin_metadata(module_path)
+            plugin = Plugin(module_path.name)
+            plugin.cache_plugin_metadata(module_path, None)
     return 0
 
 
@@ -82,18 +79,14 @@ def edit(plugin_name: str):
     '''Edits a plugin in your favorite text editor'''
     if plugin_name not in plugins_registry:
         raise typer.Exit(errno.ENODATA)
-    editor = config['app.editor.name']
-    if editor is None:
-        if config['app.editor.prefer_visual']:
-            editor = os.getenv('VISUAL', os.getenv('EDITOR'))
-        else:
-            editor = os.getenv('EDITOR', os.getenv('VISUAL'))
-    is_dir = plugins_registry[plugin_name]['is_dir']
-    path = plugins_path / plugin_name if is_dir else plugins_path / f'{plugin_name}.py'
-    editor_flags = config['app.editor.flags'] or []
-    args = [editor] + editor_flags + [str(path.resolve())]
-    logger.info('Editing plugin %s with args %s', plugin_name, args)
-    subprocess.call(args)
+    plugin = Plugin(plugin_name)
+    path = (
+        plugins_path / plugin_name
+        if plugin.is_dir
+        else plugins_path / f'{plugin_name}.py'
+    )
+    logger.info('Editing plugin %s', plugin_name)
+    open_editor(path)
     return 0
 
 
@@ -102,30 +95,28 @@ def logs(plugin_name: str) -> int:
     '''Pages on the latest log for provided plugin name.'''
     if plugin_name not in plugins_registry:
         raise typer.Exit(errno.ENODATA)
-    pager = config['app.pager.name'] or os.getenv('PAGER', 'less')
-    path: Path = logs_path / plugins_registry[plugin_name]['logger']
+    plugin = Plugin(plugin_name)
+    path: Path = logs_path / plugin.logger
     filepath: Path = None
     try:
         filepath = next(sorted(path.iterdir(), reverse=True))
     except StopIteration:
         raise typer.Exit(errno.ENOENT)
-
-    pager_flags = config['app.pager.flags'] or []
-    subprocess.call([pager] + pager_flags + [str(filepath.resolve())])
+    open_pager(filepath)
     return 0
 
 
 @app.command()
 def enable(plugin_name: str) -> int:
     '''Enables the specified plugin.'''
-    config[f'plugins.{plugin_name}.enabled'] = True
+    Plugin(plugin_name).enabled = True
     return 0
 
 
 @app.command()
 def disable(plugin_name: str) -> int:
     '''Disables the specified plugin.'''
-    config[f'plugins.{plugin_name}.enabled'] = False
+    Plugin(plugin_name).enabled = False
     return 0
 
 
@@ -133,17 +124,14 @@ def disable(plugin_name: str) -> int:
 def ls():
     '''Lists available plugins.'''
     table = Table('plugin_name', 'enabled', 'description', 'upgrade_avail')
-    for plugin_name, plugin_meta in plugins_registry.items():
-        enabled = '✅' if is_plugin_enabled(plugin_name) else '❌'
-        description = textwrap.shorten(plugin_meta['metadata.help'], 40)
-        upgrade_avail = plugin_has_upgrade(
-            plugin_name, plugin_meta['version'], plugin_meta['installed_from']
-        )
+    for plugin_name in plugins_registry:
+        plugin = Plugin(plugin_name)
+        enabled = '✅' if plugin.enabled else '❌'
         table.add_row(
             textwrap.shorten(plugin_name, 10),
             enabled,
-            description,
-            upgrade_avail,
+            plugin.short_help,
+            plugin.upgrade_available,
         )
     console.print(table)
     return 0
@@ -156,6 +144,7 @@ def install(
 ) -> int:
     '''Installs a plugin from the CLI plugin registry.'''
     logger.info('Installing plugin %s v%s', plugin_name, version)
+    plugin = Plugin(plugin_name)
     registries = config['app.registries'] or []
     registries.append('cli.dogeek.me')
     for registry in registries:
@@ -171,7 +160,7 @@ def install(
             plugin_name, version, registries, response.json()['message']
         )
         raise typer.Exit()
-    do_install(response)
+    plugin.install(response.json()['data']['file'], registry)
     print(f'Plugin {plugin_name} v{version} has been installed.')
     return 0
 
@@ -181,8 +170,8 @@ def uninstall(plugin_name: str):
     '''Uninstalls a plugin completely.'''
     if plugin_name not in plugins_registry:
         raise typer.Exit(errno.ENODATA)
-    remove_plugin_files(plugin_name)
-    del plugins_registry[plugin_name]
+    plugin = Plugin(plugin_name)
+    plugin.uninstall()
     return 0
 
 
@@ -197,14 +186,16 @@ def upgrade(
         if version != 'latest':
             print('Cannot upgrade all plugins with a specific version.')
             raise typer.Exit(1)
-        for plugin_name in plugins_registry.keys():
-            do_upgrade(plugin_name, 'latest')
+        for plugin_name in plugins_registry:
+            plugin = Plugin(plugin_name)
+            plugin.upgrade('latest')
         return 0
 
     if plugin_name not in plugins_registry:
         raise typer.Exit(errno.ENODATA)
 
-    return_code = do_upgrade(plugin_name, version)
+    plugin = Plugin(plugin_name)
+    return_code = plugin.upgrade(version)
     if return_code == 0:
         return 0
     raise typer.Exit(return_code)

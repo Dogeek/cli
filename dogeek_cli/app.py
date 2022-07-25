@@ -13,7 +13,9 @@ from dogeek_cli.state import State
 from dogeek_cli.subcommands import env
 from dogeek_cli.subcommands import config as cfg
 from dogeek_cli.subcommands import plugins
-from dogeek_cli.utils import clean_help_string, do_import, is_plugin_enabled
+from dogeek_cli.subcommands import system
+from dogeek_cli.utils import clean_help_string
+from dogeek_cli.plugin import Plugin
 
 
 logging.setLoggerClass(Logger)
@@ -23,18 +25,18 @@ logger = Logger('cli')
 def add_plugins_hook(app: typer.Typer):
     for module_name, cached_module in plugins_registry.items():
         # Cached module is in the form {"path": "...", "metadata": {...}}
-        if not is_plugin_enabled(module_name):
+        plugin = Plugin(module_name)
+        if not plugin.enabled:
             logger.info('Plugin %s is not enabled', module_name)
             continue
         logger.info(
             'Loading plugin %s into context with data %s',
             module_name, cached_module
         )
-        module = do_import(module_name, cached_module['path'])
-        plugin_app = getattr(module, 'app', None)
+        plugin_app = getattr(plugin.module, 'app', None)
         if plugin_app is None:
-            for variable_name in dir(module):
-                variable = getattr(module, variable_name)
+            for variable_name in dir(plugin.module):
+                variable = getattr(plugin.module, variable_name)
                 if isinstance(variable, typer.Typer):
                     plugin_app = variable
                     break
@@ -69,7 +71,7 @@ def callback(
 app.add_typer(env.app, name='env', help=clean_help_string(env.__doc__))
 app.add_typer(cfg.app, name='config', help=clean_help_string(cfg.__doc__))
 app.add_typer(plugins.app, name='plugins', help=clean_help_string(plugins.__doc__))
-
+app.add_typer(system.app, name='system', help=clean_help_string(system.__doc__))
 typer_click_object = typer.main.get_command(app)
 
 

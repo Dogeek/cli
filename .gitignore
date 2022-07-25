@@ -133,3 +133,6 @@ dmypy.json
 
 # Symlink to the config dir to check out the configuration files
 config
+
+# Directory to store sample files used in plugin development
+data/

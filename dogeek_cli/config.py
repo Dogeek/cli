@@ -31,7 +31,7 @@ templates_path.mkdir(parents=True, exist_ok=True)
 plugins_path: Path = (config.app_path / 'plugins')
 plugins_path.mkdir(parents=True, exist_ok=True)
 plugins_registry = JsonConfig('cli', 'registry.json')
-RESERVED_COMMANDS = ['config', 'env', 'plugins']
+RESERVED_COMMANDS = ('config', 'env', 'plugins', 'system')
 logs_path: Path = (config.app_path / 'logs')
 logs_path.mkdir(parents=True, exist_ok=True)
 tmp_dir: Path = (config.app_path / 'tmp')

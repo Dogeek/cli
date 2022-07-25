@@ -13,7 +13,7 @@ Interactive CLI to store scripts into
 
 ## Installation / Setup
 
-Install this project from PyPI => `pip3 install -U dogeek_cli`
+Install this project from PyPI => `pip3 install -U dogeek-cli`
 
 Once complete, the project should be installed, and the `cli` command should be available.
 You should run `cli config reset` at least once to initialize the global configuration file with the defaults.
@@ -36,6 +36,9 @@ Plugins can be as simple as plain python files, which export a `typer.Typer` ins
 * Included templating system (Mako)
 * Automatic setup for logging and state management
 * Public registry and publishing using asymmetric encryption for login in.
+* Easily implement plugins for the CLI, supporting features such as
+  * .cliignore => .gitignore/.dockerignore like file which prevents files from being packaged when publishing
+  * requirements.txt support
 
 ## Planned features
 
