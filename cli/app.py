@@ -1,3 +1,8 @@
+'''
+CLI application supporting plugins to centralize
+scripts and other odds and ends.
+'''
+
 import importlib.util
 from pathlib import Path
 import sys
@@ -25,7 +30,8 @@ def add_plugins_hook(app: typer.Typer):
     return app
 
 
-app = add_plugins_hook(typer.Typer())
+app = typer.Typer(help=__doc__)
+app = add_plugins_hook(app)
 
 
 @app.command()
@@ -70,7 +76,7 @@ def callback(
 
 
 app.add_typer(env.app, name='env', help=env.__doc__)
-app.add_typer(cfg.app, name='env', help=cfg.__doc__)
+app.add_typer(cfg.app, name='config', help=cfg.__doc__)
 
 typer_click_object = typer.main.get_command(app)
 

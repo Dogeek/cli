@@ -130,3 +130,6 @@ dmypy.json
 
 # VS Code settings
 .vscode/settings.json
+
+# Symlink to the config dir to check out the configuration files
+config

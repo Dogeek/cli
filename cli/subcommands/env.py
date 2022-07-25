@@ -1,6 +1,7 @@
 '''
 Convenient way to pass environments to CLI parameters.
 '''
+
 import errno
 import json
 from typing import Optional
@@ -40,7 +41,12 @@ def mv(original_name: str, new_name: str) -> int:
 
 
 @app.command()
-def ls(filter: Optional[str] = typer.Option(None, '-f', '--filter')) -> int:
+def ls(
+    filter: Optional[str] = typer.Option(
+        None, '-f', '--filter', help='Filter environments by name.'
+    )
+) -> int:
+    '''Lists available environments.'''
     the_env = {
         k: v
         for k, v in sorted(env.items(), key=lambda x: x[0])
@@ -65,6 +71,7 @@ def rm(name: str) -> int:
 
 @app.command()
 def get(name: str) -> int:
+    '''Gets a configured environment from the config.'''
     if state['json']:
         console.print(
             Syntax(

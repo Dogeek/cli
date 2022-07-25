@@ -1,3 +1,7 @@
+'''
+Convenient way to set application-wide configuration values.
+'''
+
 import errno
 
 from rich.console import Console
@@ -35,5 +39,6 @@ def get(key: str) -> int:
 
 @app.command()
 def set(key: str, value: str) -> int:
+    '''Sets the value for a config key.'''
     config[key] = value
     return 0
