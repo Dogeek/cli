@@ -18,5 +18,5 @@ import sys
 
 commit = pathlib.Path(sys.argv[1]).read_text()
 
-if not re.search(r"\[(san|feat|fix|add)\] .{10,50}(\n.*)+", commit):
+if not re.search(r"\[(san|feat|fix|add|mod)\] .{10,50}(\n.*)+", commit):
     sys.exit(1)
