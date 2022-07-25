@@ -5,6 +5,9 @@
     * cache plugins
     * view plugin logs
     * edit plugins
+    * Automatic RSA key pair generation
+    * List CLI plugins
+    * Enable / disable plugins
   * Automatic configuration handling
   * Environment system
   * Added logging capabilities

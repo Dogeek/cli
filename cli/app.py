@@ -6,12 +6,13 @@ import logging
 
 import typer
 
-from cli.config import plugins_registry, state  # noqa
+from cli.config import config, plugins_registry, state  # noqa
+from cli.enums import OutputFormat
 from cli.logging import Logger
 from cli.subcommands import env
 from cli.subcommands import config as cfg
 from cli.subcommands import plugins
-from cli.utils import clean_help_string, do_import
+from cli.utils import clean_help_string, do_import, is_plugin_enabled
 
 
 logging.setLoggerClass(Logger)
@@ -21,12 +22,25 @@ logger = Logger('cli')
 def add_plugins_hook(app: typer.Typer):
     for module_name, cached_module in plugins_registry.items():
         # Cached module is in the form {"path": "...", "metadata": {...}}
+        if not is_plugin_enabled(module_name):
+            logger.info('Plugin %s is not enabled', module_name)
+            continue
         logger.info(
             'Loading plugin %s into context with data %s',
             module_name, cached_module
         )
         module = do_import(module_name, cached_module['path'])
-        app.add_typer(module.app, **cached_module['metadata'])
+        plugin_app = getattr(module, 'app', None)
+        if plugin_app is None:
+            for variable_name in dir(module):
+                variable = getattr(module, variable_name)
+                if isinstance(variable, typer.Typer):
+                    plugin_app = variable
+                    break
+            else:
+                logger.error('Plugin %s does not export a typer.Typer instance.', module_name)
+                continue
+        app.add_typer(plugin_app, **cached_module['metadata'])
     return app
 
 
@@ -36,16 +50,18 @@ app = add_plugins_hook(app)
 
 @app.callback()
 def callback(
-    json: bool = typer.Option(False, '--json', help='Format the output as JSON.'),
-    toml: bool = typer.Option(False, '--toml', help='Format the output as TOML.'),
-    csv: bool = typer.Option(False, '--csv', help='Format the output as CSV.'),
-    yaml: bool = typer.Option(False, '--yaml', '--yml', help='Format the output as YAML.')
+    format: OutputFormat = typer.Option(
+        OutputFormat.DEFAULT, '--format', '-f',
+        help='Format the output into the given format.'
+    ),
+    verbosity: int = typer.Option(
+        config['app.default_verbosity'], "--verbose", "-v", count=True, min=0,
+        max=5, help='Set the verbosity level of the command.',
+    ),
 ) -> None:
     global state
-    state['json'] = json
-    state['toml'] = toml
-    state['csv'] = csv
-    state['yaml'] = yaml
+    state['format'] = format.value
+    state['verbosity'] = verbosity
     return
 
 
