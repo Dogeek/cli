@@ -11,6 +11,23 @@ Interactive CLI to store scripts into
 * Free software: MIT license
 * Documentation: https://cli.readthedocs.io.
 
+## Installation / Setup
+
+Install this project from PyPI => `pip3 install -U dogeek_cli`
+
+Once complete, the project should be installed, and the `cli` command should be available.
+You should run `cli config reset` at least once to initialize the global configuration file with the defaults.
+
+Commands :
+
+- `cli plugins install $plugin_name` => install a plugin from the public registry
+- `cli plugins upgrade` => Upgrades all plugins to the latest version
+- `cli config set $config_key $config_value` => sets a configuration key/value pair
+
+Plugins are installed in `$XDG_CONFIG_HOME/cli/plugins`.
+On Windows, they are installed in `C:\Users\$USER\AppData\Roaming\cli\plugins`.
+
+Plugins can be as simple as plain python files, which export a `typer.Typer` instance. They can also be more complex and be whole python modules, in that case, the module's `__init__.py` file should export the `typer.Typer` instance.
 
 ## Features
 
@@ -18,14 +35,10 @@ Interactive CLI to store scripts into
 * Built-in configuration options
 * Included templating system (Mako)
 * Automatic setup for logging and state management
+* Public registry and publishing using asymmetric encryption for login in.
 
 ## Planned features
 
-* Public registry for plugins
-  * cli plugins publish
-  * cli plugins install
-  * cli plugins uninstall
-  * cli plugins upgrade
 * Update checking for cli app
 * Handle plugins dependancy management cleanly
   * install in virtualenv ?

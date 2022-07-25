@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from cli.config import config
+from dogeek_cli.config import config, DefaultConfig
 
 
 app = typer.Typer()
@@ -42,3 +42,10 @@ def set(key: str, value: str) -> int:
     '''Sets the value for a config key.'''
     config[key] = value
     return 0
+
+
+@app.command()
+def reset() -> int:
+    '''Resets the configuration file to its default state.'''
+    for key, value in DefaultConfig._DEFAULTS.items():
+        config[key] = value

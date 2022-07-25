@@ -1,13 +1,9 @@
 '''Manages CLI plugins.'''
-from base64 import b85decode
 import errno
 from http import HTTPStatus
-import io
 import os
 from pathlib import Path
 import subprocess
-import tarfile
-import gzip
 import textwrap
 from typing import Optional
 
@@ -18,15 +14,19 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from cli.client import Client
-from cli.config import (
+from dogeek_cli.client import Client
+from dogeek_cli.config import (
     config, plugins_path, plugins_registry, RESERVED_COMMANDS, logs_path,
 )
-from cli.logging import Logger
-from cli.utils import clean_help_string, do_import, is_plugin_enabled, make_tarball
-
+from dogeek_cli.logging import Logger
+from dogeek_cli.utils import (
+    cache_plugin_metadata, is_plugin_enabled, do_install,
+    do_upgrade, plugin_has_upgrade, remove_plugin_files,
+)
+from dogeek_cli.subcommands.registry import app as registry_app
 
 app = typer.Typer()
+app.add_typer(registry_app, name='registry')
 console = Console()
 logger = Logger('cli.plugins')
 
@@ -73,32 +73,7 @@ def update() -> int:
                 continue
             if module_path.name.startswith('.'):
                 continue
-            plugin_name = module_path.name.split('.')[0]
-            module_name = f'plugins.{plugin_name}'
-            module = do_import(module_name, module_path)
-            default_metadata = {
-                'help': clean_help_string(module.__doc__),
-                'name': plugin_name,
-            }
-            metadata = getattr(module, 'metadata', {})
-            for k, v in default_metadata.items():
-                if k not in metadata:
-                    metadata[k] = v
-
-            for variable_name in dir(module):
-                if isinstance(getattr(module, variable_name), Logger):
-                    logger_name = getattr(module, variable_name).logger_name
-                    break
-            else:
-                logger_name = plugin_name
-            plugins_registry[plugin_name] = {
-                'path': str(module_path),
-                'is_dir': module_path.is_dir(),
-                'logger': logger_name,
-                'metadata': metadata,
-                'version': getattr(module, '__version__', '1.0.0')
-            }
-            config[f'plugins.{plugin_name}.enabled'] = True
+            cache_plugin_metadata(module_path)
     return 0
 
 
@@ -113,9 +88,11 @@ def edit(plugin_name: str):
             editor = os.getenv('VISUAL', os.getenv('EDITOR'))
         else:
             editor = os.getenv('EDITOR', os.getenv('VISUAL'))
-    path = plugins_path / plugin_name
+    is_dir = plugins_registry[plugin_name]['is_dir']
+    path = plugins_path / plugin_name if is_dir else plugins_path / f'{plugin_name}.py'
     editor_flags = config['app.editor.flags'] or []
     args = [editor] + editor_flags + [str(path.resolve())]
+    logger.info('Editing plugin %s with args %s', plugin_name, args)
     subprocess.call(args)
     return 0
 
@@ -155,14 +132,18 @@ def disable(plugin_name: str) -> int:
 @app.command()
 def ls():
     '''Lists available plugins.'''
-    table = Table('plugin_name', 'enabled', 'description')
+    table = Table('plugin_name', 'enabled', 'description', 'upgrade_avail')
     for plugin_name, plugin_meta in plugins_registry.items():
         enabled = '✅' if is_plugin_enabled(plugin_name) else '❌'
         description = textwrap.shorten(plugin_meta['metadata.help'], 40)
+        upgrade_avail = plugin_has_upgrade(
+            plugin_name, plugin_meta['version'], plugin_meta['installed_from']
+        )
         table.add_row(
             textwrap.shorten(plugin_name, 10),
             enabled,
             description,
+            upgrade_avail,
         )
     console.print(table)
     return 0
@@ -171,16 +152,16 @@ def ls():
 @app.command()
 def install(
     plugin_name: str,
-    version: str = typer.Option('latest', '--version', '-v')
+    version: str = typer.Option('latest', '--version', '-v'),
 ) -> int:
     '''Installs a plugin from the CLI plugin registry.'''
     logger.info('Installing plugin %s v%s', plugin_name, version)
-    client = Client()
     registries = config['app.registries'] or []
     registries.append('cli.dogeek.me')
     for registry in registries:
+        client = Client(registry)
         response = client.get(
-            f'https://{registry}/v1/plugins/{plugin_name}/versions/{version}'
+            f'/v1/plugins/{plugin_name}/versions/{version}'
         )
         if response.status_code == HTTPStatus.OK:
             break
@@ -190,72 +171,40 @@ def install(
             plugin_name, version, registries, response.json()['message']
         )
         raise typer.Exit()
-
-    data = response.json()['data']
-    file_ = io.BytesIO(gzip.decompress(b85decode(data['file'])))
-    archive = tarfile.TarFile(fileobj=file_)
-    archive.extractall(plugins_path)
-    archive.close()
+    do_install(response)
     print(f'Plugin {plugin_name} v{version} has been installed.')
-    return 0
-
-
-@app.command()
-def publish(
-    plugin_name: str,
-    registry: str = typer.Option('cli.dogeek.me', '--registry')
-) -> int:
-    '''Publish a plugin to the registry.'''
-    metadata = plugins_registry[plugin_name]
-    module_path = Path(metadata['path'])
-    module_name = f'plugins.{plugin_name}'
-    plugin_module = do_import(module_name, module_path)
-    client = Client()
-    version = getattr(plugin_module, '__version__', '1.0.0')
-
-    # List plugin versions
-    response = client.get(f'https://{registry}/v1/plugins/{plugin_name}/versions')
-    logger.debug('Status : %s, Versions : %s', response.status_code, response.json())
-    if response.status_code == HTTPStatus.NOT_FOUND:
-        # Initial release
-        logger.info('Initial release of plugin %s, creating plugin on registry.', plugin_name)
-        client.post(
-            f'https://{registry}/v1/plugins',
-            json={'name': plugin_name}, do_sign=True,
-        )
-    available_versions = [v['version'] for v in response.json()['data']]
-    if version in available_versions:
-        logger.error('Plugin %s version %s already exists', plugin_name, version)
-        raise typer.Exit()
-
-    data = make_tarball(module_path)
-    files = {
-        'file': (
-            f'{version}.tar.gz',
-            data,
-            'application/tar+gzip'
-        )
-    }
-    client.post(
-        f'https://{registry}/v1/plugins/{plugin_name}/versions/{version}',
-        do_sign=True, files=files,
-    )
     return 0
 
 
 @app.command()
 def uninstall(plugin_name: str):
     '''Uninstalls a plugin completely.'''
-
-
-@app.command()
-def add_maintainer(plugin_name: str, maintainer_public_key: str, maintainer_email: str):
-    '''Adds a maintainer to the plugin.'''
+    if plugin_name not in plugins_registry:
+        raise typer.Exit(errno.ENODATA)
+    remove_plugin_files(plugin_name)
+    del plugins_registry[plugin_name]
+    return 0
 
 
 @app.command()
 def upgrade(
     plugin_name: Optional[str] = typer.Option(None, '--plugin', '-p'),
     version: str = typer.Option('latest', '--version')
-):
+) -> int:
     '''Upgrades one or all plugins to the desired version.'''
+    if plugin_name is None:
+        # Upgrade all the plugins to the latest version
+        if version != 'latest':
+            print('Cannot upgrade all plugins with a specific version.')
+            raise typer.Exit(1)
+        for plugin_name in plugins_registry.keys():
+            do_upgrade(plugin_name, 'latest')
+        return 0
+
+    if plugin_name not in plugins_registry:
+        raise typer.Exit(errno.ENODATA)
+
+    return_code = do_upgrade(plugin_name, version)
+    if return_code == 0:
+        return 0
+    raise typer.Exit(return_code)

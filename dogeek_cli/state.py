@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from cli.config import config
-from cli.enums import OutputFormat
+from dogeek_cli.config import config
+from dogeek_cli.enums import OutputFormat
 
 
 class Singleton(type):

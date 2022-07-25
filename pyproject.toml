@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "cli"
+name = "dogeek_cli"
 version = "1.0.0"
 description = "Interactive CLI to store scripts into"
 authors = ["Dogeek <simon.bordeyne@gmail.com>"]

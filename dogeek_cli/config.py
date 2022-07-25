@@ -35,6 +35,7 @@ RESERVED_COMMANDS = ['config', 'env', 'plugins']
 logs_path: Path = (config.app_path / 'logs')
 logs_path.mkdir(parents=True, exist_ok=True)
 tmp_dir: Path = (config.app_path / 'tmp')
+tmp_dir.mkdir(parents=True, exist_ok=True)
 
 templates = TemplateLookup(
     directories=[str(templates_path.resolve())],

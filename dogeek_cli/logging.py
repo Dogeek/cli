@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 import logging.handlers
 
-from cli.config import config, logs_path
+from dogeek_cli.config import config, logs_path
 
 
 class Logger(logging.Logger):

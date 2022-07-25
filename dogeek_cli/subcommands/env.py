@@ -12,8 +12,8 @@ from rich.syntax import Syntax
 from rich.table import Table
 import typer
 
-from cli.config import config, env
-from cli.state import state
+from dogeek_cli.config import config, env
+from dogeek_cli.state import state
 
 
 app = typer.Typer(help=__doc__)
