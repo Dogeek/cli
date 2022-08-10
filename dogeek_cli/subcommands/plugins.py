@@ -8,6 +8,8 @@ from typing import Optional
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
+from mako.lookup import TemplateLookup
+from mako.template import Template
 from rich.console import Console
 from rich.table import Table
 import typer
@@ -15,6 +17,7 @@ import typer
 from dogeek_cli.client import Client
 from dogeek_cli.config import (
     config, plugins_path, plugins_registry, RESERVED_COMMANDS, logs_path,
+    root_path,
 )
 from dogeek_cli.logging import Logger
 from dogeek_cli.utils import open_editor, open_pager
@@ -77,9 +80,26 @@ def update() -> int:
 @app.command()
 def edit(plugin_name: str):
     '''Edits a plugin in your favorite text editor'''
-    if plugin_name not in plugins_registry:
-        raise typer.Exit(errno.ENODATA)
     plugin = Plugin(plugin_name)
+    if not plugin.exists:
+        path = plugins_path / plugin_name
+        path.mkdir(exist_ok=True, parents=True)
+        lookup = TemplateLookup([str(root_path / 'templates')])
+        for filepath in (root_path / 'templates/plugin').glob('*'):
+            parts = (
+                filepath.parts[
+                    len(filepath.parts) - filepath.parts[::-1].index('templates'):
+                ]
+            )
+            uri = '/'.join(parts)
+            template: Template = lookup.get_template(uri)
+            (path / '/'.join(parts[1:])).write_text(
+                template.render()
+            )
+        logger.info('Creating plugin %s from templates.', plugin_name)
+        open_editor(path)
+        return 0
+
     path = (
         plugins_path / plugin_name
         if plugin.is_dir

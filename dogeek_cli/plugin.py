@@ -35,6 +35,13 @@ class Plugin:
         self._client = None
 
     @property
+    def exists(self):
+        return (
+            self.plugin_name in plugins_registry or
+            any(fp.name.split('.')[0] == self.plugin_name for fp in plugins_path.glob('*'))
+        )
+
+    @property
     def client(self) -> Client:
         return Client(self.installed_from)
 
@@ -49,7 +56,15 @@ class Plugin:
 
     @property
     def is_dir(self) -> bool:
+        if self.plugin_name not in plugins_registry and self.exists:
+            path = plugins_path / self.plugin_name
+            return path.exists() and path.is_dir()
         return plugins_registry[self.plugin_name]['is_dir']
+
+    @is_dir.setter
+    def is_dir(self, is_directory: bool) -> None:
+        plugins_registry[self.plugin_name]['is_dir'] = bool(is_directory)
+        return
 
     @property
     def logger(self) -> str:

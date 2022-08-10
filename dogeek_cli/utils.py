@@ -1,5 +1,6 @@
 import os
 import os.path
+import contextlib
 from pathlib import Path
 import tarfile
 import textwrap
@@ -64,23 +65,27 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-def get_pypi_version(package: str, url_pattern: str | None = None) -> packaging.version.Version:
+def get_pypi_version(
+    package: str, url_pattern: str | None = None
+) -> packaging.version.Version | None:
     '''Returns version of package on pypi.python.org using json.'''
     if url_pattern is None:
         url_pattern = 'https://pypi.python.org/pypi/{package}/json'
 
-    response = requests.get(url_pattern.format(package=package))
-    if response.status_code != HTTPStatus.OK:
-        return
+    with contextlib.suppress(requests.exceptions.ConnectionError):
+        response = requests.get(url_pattern.format(package=package))
+        if response.status_code != HTTPStatus.OK:
+            return
 
-    latest = packaging.version.parse('0')
-    data = response.json()
-    releases = data.get('releases', [])
-    for release in releases:
-        release_version = packaging.version.parse(release)
-        if not release_version.is_prerelease:
-            latest = max(latest, release_version)
-    return latest
+        latest = packaging.version.parse('0')
+        data = response.json()
+        releases = data.get('releases', [])
+        for release in releases:
+            release_version = packaging.version.parse(release)
+            if not release_version.is_prerelease:
+                latest = max(latest, release_version)
+        return latest
+    return None
 
 
 def check_version(current_version: str) -> None:
