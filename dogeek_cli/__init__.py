@@ -1,7 +1,7 @@
 '''
 Interactive CLI to store scripts into
 '''
-__version__ = '1.3.0'
+__version__ = '1.4.0'
 
 from dogeek_cli.logging import Logger  # noqa
 from dogeek_cli.config import config, env, tmp_dir, templates, templates_path  # noqa
