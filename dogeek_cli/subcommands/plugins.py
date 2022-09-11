@@ -93,7 +93,8 @@ def edit(plugin_name: str):
             )
             uri = '/'.join(parts)
             template: Template = lookup.get_template(uri)
-            (path / '/'.join(parts[1:])).write_text(
+            out_uri = '/'.join(parts[1:]).rsplit('.', 1)[0]
+            (path / out_uri).write_text(
                 template.render()
             )
         logger.info('Creating plugin %s from templates.', plugin_name)

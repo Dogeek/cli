@@ -26,6 +26,7 @@ def add_plugins_hook(app: typer.Typer):
     for module_name, cached_module in plugins_registry.items():
         # Cached module is in the form {"path": "...", "metadata": {...}}
         plugin = Plugin(module_name)
+        plugin.make_meta()
         if not plugin.enabled:
             logger.info('Plugin %s is not enabled', module_name)
             continue

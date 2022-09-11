@@ -4,6 +4,7 @@ from http import HTTPStatus
 import importlib.util
 import os
 from pathlib import Path
+import json
 import shutil
 import sys
 from urllib.parse import urlparse
@@ -15,11 +16,13 @@ import textwrap
 from types import ModuleType
 
 from gitignore_parser import parse_gitignore
+import typer
 
 from dogeek_cli.client import Client
 from dogeek_cli.config import plugins_registry, plugins_path, config, tmp_dir
 from dogeek_cli.logging import Logger
 from dogeek_cli.utils import clean_help_string, cliignore_filter_factory
+from dogeek_cli.meta import make_cmd, make_callback
 
 
 @dataclass
@@ -130,6 +133,9 @@ class Plugin:
             path = self.path / '__init__.py'
         else:
             path = self.path
+
+        if not self.path.exists():
+            raise FileNotFoundError(f'Plugin not found at path {path}')
         spec = importlib.util.spec_from_file_location(
             f'plugins.{self.plugin_name}', str(path)
         )
@@ -238,3 +244,19 @@ class Plugin:
         self.remove_files()
         del plugins_registry[self.plugin_name]
         return
+
+    def make_meta(self, force_update: bool = False) -> None:
+        path = Path(config.app_path) / f'plugin_meta/{self.plugin_name}.meta'
+        path.parent.mkdir(exist_ok=True, parents=True)
+        if not force_update and path.exists():
+            return
+
+        app: typer.Typer = self.module.app
+        meta = vars(self.metadata)
+
+        meta['commands'] = [
+            make_cmd(command) for command in app.registered_commands
+        ]
+        meta['callback'] = make_callback(app.registered_callback)
+
+        path.write_text(json.dumps(meta, indent=2))
