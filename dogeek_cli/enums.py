@@ -8,6 +8,7 @@ class OutputFormat(str, Enum):
     CSV = 'csv'
     YAML = 'yaml'
     YML = 'yaml'
+    TABLE = 'table'
 
 
 class PurgeWhat(str, Enum):

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dogeek_cli"
-version = "1.4.0"
+version = "1.5.0"
 description = "Interactive CLI to store scripts into"
 authors = ["Dogeek <simon.bordeyne@gmail.com>"]
 license = "MIT"
@@ -24,6 +24,8 @@ cryptography = {extras = ["ssh"], version = "^37.0.4"}
 Mako = "^1.2.1"
 gitignore-parser = "^0.0.8"
 pick = "^1.4.0"
+PyYAML = "^6.0"
+toml = "^0.10.2"
 
 [tool.poe.tasks]
 add_changelog  = { script = "scripts.add_changelog:main" }

@@ -106,7 +106,7 @@ class Plugin:
 
         latest_version: str = self.client.get(
             f'/v1/plugins/{self.plugin_name}/versions/latest'
-        ).json()['version']
+        ).json()['data']['version']
         latest_version: tuple[int] = tuple(int(c) for c in latest_version.split('.'))
         for i, (current, latest) in enumerate(zip(self.version, latest_version)):
             if current < latest:
